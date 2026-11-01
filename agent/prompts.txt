@@ -1,0 +1,8 @@
+Eksempler på spørgsmål brugt til at teste agenten:
+
+1. Hvem er Lamine Yamal?
+2. Fortæl om FC Barcelonas historie.
+3. Hvem er træner i FC Barcelona?
+4. Hvad ved du om julemanden?
+
+Formålet med spørgsmålene er at teste, om agenten kan hente relevante oplysninger fra databasen og håndtere spørgsmål, hvor der ikke findes relevante oplysninger.
