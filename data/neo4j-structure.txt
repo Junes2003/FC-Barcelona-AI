@@ -1,0 +1,32 @@
+Database:
+fc-barcelona-rag
+
+Databasen indeholder strukturerede oplysninger om FC Barcelona.
+
+Nodetyper:
+- Player
+- Club
+- Coach
+
+Relationstyper:
+- Player -[:PLAYS_FOR]-> Club
+- Coach -[:COACHES]-> Club
+
+Player-egenskaber:
+- name
+- position
+- shirtNumber
+
+Club-egenskaber:
+- name
+
+Coach-egenskaber:
+- name
+- role
+- nationality
+- profile
+
+Vector index:
+- Navn: document_embedding
+- Embedding-model: nomic-embed-text:latest
+- Dimensioner: 768
