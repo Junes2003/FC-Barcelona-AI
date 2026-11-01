@@ -1,0 +1,11 @@
+Opsætning af projektet:
+
+1. Start n8n via Docker.
+2. Start Ollama.
+3. Sørg for, at modellerne llama3.2:latest og nomic-embed-text:latest er installeret.
+4. Start Neo4j-databasen fc-barcelona-rag.
+5. Importér FC Barcelona-data til Neo4j.
+6. Opret vector index med navnet document_embedding.
+7. Importér n8n-workflows fra workflows-mappen.
+8. Kontrollér forbindelserne mellem n8n, Ollama og Neo4j.
+9. Aktivér de workflows, som AI-agenten kalder som værktøjer.
