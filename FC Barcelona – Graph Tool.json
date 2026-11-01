@@ -1,0 +1,105 @@
+{
+  "name": "FC Barcelona – Graph Tool",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "question"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -48,
+        0
+      ],
+      "id": "08d18abd-64a0-4b50-b1bc-7a8110a1023e",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:7474/db/fc-barcelona-rag/query/v2",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"statement\": \"MATCH (p:Player)-[:PLAYS_FOR]->(c:Club {name: 'FC Barcelona'}) RETURN p.name AS spiller, p.position AS position, p.shirtNumber AS trojenummer, c.name AS klub ORDER BY p.shirtNumber\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        384,
+        0
+      ],
+      "id": "e309bdab-0dc0-4efb-a7b5-f687a0d62b0e",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "rgS5U5UOUSzy0ifk",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "Modtager et spørgsmål fra AI Agenten og starter grafbaseret søgning.",
+        "height": 80
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -144,
+        -80
+      ],
+      "typeVersion": 1,
+      "id": "97e4694f-eac8-458a-876c-44b5df604cf6",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "Sender en Cypher-forespørgsel til Neo4j via HTTP API. Forespørgslen finder spillere, der er forbundet med FC Barcelona gennem relationen PLAYS_FOR.\n\nDen returnerer:\n- Spillerens navn.\n- Spillerens position.\n- Spillerens trøjenummer.\n- Klubbens navn.",
+        "height": 272,
+        "width": 352
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        144,
+        -128
+      ],
+      "typeVersion": 1,
+      "id": "38215d6b-0a76-43cf-8f22-d588772f7659",
+      "name": "Sticky Note1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "15d4cf75-8ddd-4394-8cb0-be3339fd231e",
+  "meta": {
+    "instanceId": "6262109213ecacf6e9e7e78260515abac2ba45e4ec54bf5267b3b5341b9f8d55"
+  },
+  "nodeGroups": [],
+  "id": "L4Vns8lUjb6vfPCx",
+  "tags": []
+}

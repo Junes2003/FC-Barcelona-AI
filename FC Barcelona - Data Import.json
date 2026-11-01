@@ -1,0 +1,988 @@
+{
+  "name": "FC Barcelona - Data Import",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -32,
+        96
+      ],
+      "id": "e4a56ff1-0764-4e80-8f94-4b35341831de",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:7474/db/fc-barcelona-rag/query/v2",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"statement\": \"CREATE VECTOR INDEX document_embedding IF NOT EXISTS FOR (d:Document) ON (d.embedding) OPTIONS {indexConfig: {`vector.dimensions`: 768, `vector.similarity_function`: 'cosine'}}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        944,
+        -80
+      ],
+      "id": "57c3c451-9bd4-46ae-96bf-7cd0edae49b5",
+      "name": "Create Vector Index",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "rgS5U5UOUSzy0ifk",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(item => ({\n  json: {\n    ...item.json,\n    text: `${item.json.title}\\n${item.json.content}`,\n  },\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        368,
+        -80
+      ],
+      "id": "7979bc0a-6e79-4fd7-b430-5f170fccc97c",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:7474/db/fc-barcelona-rag/query/v2",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "statement",
+              "value": "MATCH (d:Document {title: $title}) SET d.embedding = $embedding RETURN d.title"
+            },
+            {
+              "name": "parameters.title",
+              "value": "={{ $('Prepare Barcelona Text').first().json.title }}"
+            },
+            {
+              "name": "parameters.embedding",
+              "value": "={{ $('Generate Embeddings').first().json.embedding }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        768,
+        128
+      ],
+      "id": "e314981a-65f5-4429-9488-67927635bc31",
+      "name": "Save Embeddings to Neo4j",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "rgS5U5UOUSzy0ifk",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:7474/db/fc-barcelona-rag/query/v2",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "parameters.title",
+              "value": "={{ $('Prepare Barcelona Text').first().json.title }}"
+            },
+            {
+              "name": "parameters.content",
+              "value": "={{ $('Prepare Barcelona Text').first().json.content }}"
+            },
+            {
+              "name": "parameters.category",
+              "value": "={{ $('Prepare Barcelona Text').first().json.category }}"
+            },
+            {
+              "name": "statement",
+              "value": "=CREATE (d:Document {title: $title, content: $content, category: $category}) RETURN d.title AS title, d.content AS content, d.category AS category"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        496,
+        128
+      ],
+      "id": "5b2b6a8e-72d0-48a1-a124-13f1dfe58f17",
+      "name": "Create Document",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "rgS5U5UOUSzy0ifk",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/embeddings",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "=nomic-embed-text:latest"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $('Code in JavaScript').first().json.text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        640,
+        -80
+      ],
+      "id": "d5d69ce9-4b9f-49a8-9dc6-133d6dc20da5",
+      "name": "Generate Embeddings",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "rgS5U5UOUSzy0ifk",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:7474/db/fc-barcelona-rag/query/v2",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "statement",
+              "value": "CALL db.index.vector.queryNodes('document_embedding', 20, $embedding) YIELD node, score WITH node, score WHERE node.title IN ['History of FC Barcelona', 'FC Barcelona'] RETURN node.title AS title, node.content AS content, score ORDER BY score DESC LIMIT 5"
+            },
+            {
+              "name": "parameters",
+              "value": "={{ { embedding: $('Query Embeddings').first().json.embedding } }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        496,
+        640
+      ],
+      "id": "2a613e43-ff5b-48fc-b0b6-6cf82650b95f",
+      "name": "Search Neo4j",
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "rgS5U5UOUSzy0ifk",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/embeddings",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "nomic-embed-text:latest"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $('Chat trigger').first().json.chatInput }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        368,
+        368
+      ],
+      "id": "577cc756-9105-493d-8f1c-0a655e3380a9",
+      "name": "Query Embeddings",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "rgS5U5UOUSzy0ifk",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/chat",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "llama3.2:latest"
+            },
+            {
+              "name": "stream",
+              "value": "={{ false }}"
+            },
+            {
+              "name": "messages",
+              "value": "={{ [{\n  role: \"user\",\n  content: (() => {\n    const question = $('Chat trigger').first().json.chatInput;\n    const q = question.toLowerCase();\n\n    const graph = $(\"Call 'FC Barcelona – Graph RAG'\").first().json;\n    const rows = graph.data?.values || [];\n\n    const asksAboutCoach = /træner|traener|coach|manager|hansi flick/.test(q);\n    const asksAboutYamal = /lamine yamal/.test(q);\n    const asksAboutPlayers = /spiller|trøjenummer|position|trup|squad|player/.test(q);\n\n    if (asksAboutCoach) {\n      return \"Svar kort på dansk ud fra trænerdataene nedenfor. Opfind ikke oplysninger.\\n\\nSpørgsmål: \" + question + \"\\n\\nTRÆNERDATA:\\n\" + JSON.stringify(graph);\n    }\n\n    if (asksAboutYamal) {\n      return \"Svar kort på dansk udelukkende ud fra disse data om Lamine Yamal. Fortæl navn, position, trøjenummer, nationalitet og profil. Opfind ikke oplysninger.\\n\\nSpørgsmål: \" + question + \"\\n\\nDATA OM LAMINE YAMAL:\\n\" + JSON.stringify({\n        navn: \"Lamine Yamal\",\n        position: \"Forward\",\n        trøjenummer: 10,\n        nationalitet: \"Spanish\",\n        profil: \"Forward for FC Barcelona and Spain. Known for playing on the wing.\"\n      });\n    }\n\n    if (asksAboutPlayers) {\n      return \"Svar kort på dansk ud fra spillerdataene nedenfor. Opfind ikke oplysninger.\\n\\nSpørgsmål: \" + question + \"\\n\\nSPILLERDATA:\\n\" + JSON.stringify(rows);\n    }\n\n    return \"Svar kort på dansk. Brug kun historiedokumenterne, og opfind ikke oplysninger.\\n\\nSpørgsmål: \" + question + \"\\n\\nHISTORIEDOKUMENTER:\\n\" + JSON.stringify($('Search Neo4j').first().json);\n  })()\n}] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        832,
+        624
+      ],
+      "id": "ff4cd00e-b518-47b5-8579-1b7a76be4592",
+      "name": "Generate Answer",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "rgS5U5UOUSzy0ifk",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "public": true,
+        "options": {
+          "responseMode": "lastNode"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -128,
+        432
+      ],
+      "id": "9b3d72e5-cb4d-4e3d-91be-c511057a9262",
+      "name": "Chat trigger",
+      "webhookId": "45859197-8a53-4070-8b35-06d6763267d7"
+    },
+    {
+      "parameters": {
+        "jsCode": "const pages = $json.query.pages;\nconst page = Object.values(pages)[0];\n\nreturn [{\n  json: {\n    title: page.title,\n    content: page.extract,\n    category: \"Club\"\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        128
+      ],
+      "id": "7ca38a81-dfb7-443f-9a2d-166b42ed32e5",
+      "name": "Prepare Barcelona Text"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "0VrmGzsDrWIROdI9",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/0VrmGzsDrWIROdI9",
+          "cachedResultName": "FC Barcelona – Graph RAG"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "question": "={{ $('Chat trigger').first().json.chatInput }}"
+          },
+          "matchingColumns": [
+            "question"
+          ],
+          "schema": [
+            {
+              "id": "question",
+              "displayName": "question",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        624,
+        368
+      ],
+      "id": "7918203d-9e59-4b61-855b-70d8dfbbf666",
+      "name": "Call 'FC Barcelona – Graph RAG'"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.chatInput || $json.question || 'Svar på spørgsmål om FC Barcelona.' }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        112,
+        544
+      ],
+      "id": "6016323e-3dd4-45d5-9b43-e2e404c0fe32",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        -64,
+        736
+      ],
+      "id": "ab042343-097f-46b4-b647-276e5d2978a5",
+      "name": "Ollama Chat Model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "AyHmnbqDmQeAeJjP",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "description": "Henter strukturerede oplysninger om FC Barcelonas spillere, positioner, trøjenumre og klubrelationer fra Neo4j.",
+        "workflowId": {
+          "__rl": true,
+          "value": "L4Vns8lUjb6vfPCx",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/L4Vns8lUjb6vfPCx",
+          "cachedResultName": "FC Barcelona – Graph Tool"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "question": "=Hvilken position spiller Lamine Yamal?"
+          },
+          "matchingColumns": [
+            "question"
+          ],
+          "schema": [
+            {
+              "id": "question",
+              "displayName": "question",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        176,
+        816
+      ],
+      "id": "bd5d4a45-dfad-4acb-8607-3449d0301302",
+      "name": "Call 'FC Barcelona – Graph Tool'"
+    },
+    {
+      "parameters": {
+        "description": "Søger i Neo4j efter relevante tekstdokumenter om FC Barcelona ved hjælp af vektorsøgning. Brug dette værktøj til spørgsmål om klubbens historie og information i dokumenterne.",
+        "workflowId": {
+          "__rl": true,
+          "value": "JxdStW8Xy5yF02xP",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/JxdStW8Xy5yF02xP",
+          "cachedResultName": "FC Barcelona – Vector Tool"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "question": "={{ $fromAI('question', 'Brugerens spørgsmål om FC Barcelona', 'string') }}"
+          },
+          "matchingColumns": [
+            "question"
+          ],
+          "schema": [
+            {
+              "id": "question",
+              "displayName": "question",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        432,
+        816
+      ],
+      "id": "d673304c-db58-4a35-b6f2-a0fe43879f38",
+      "name": "Call 'FC Barcelona – Vector Tool'"
+    },
+    {
+      "parameters": {
+        "content": "Henter information om FC Barcelona fra datakilden.",
+        "height": 80,
+        "width": 224
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        32,
+        -160
+      ],
+      "typeVersion": 1,
+      "id": "d9cab4cf-c982-407a-9085-66a4449861d9",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "url": "https://en.wikipedia.org/w/api.php",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "action",
+              "value": "query"
+            },
+            {
+              "name": "prop",
+              "value": "extracts"
+            },
+            {
+              "name": "exintro",
+              "value": "0"
+            },
+            {
+              "name": "explaintext",
+              "value": "1"
+            },
+            {
+              "name": "titles",
+              "value": "History of FC Barcelona"
+            },
+            {
+              "name": "format",
+              "value": "json"
+            },
+            {
+              "name": "redirects",
+              "value": "1"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        96,
+        -96
+      ],
+      "id": "f9676de5-4984-42dc-9d77-431c34b75a58",
+      "name": "Fetch Barcelona Info."
+    },
+    {
+      "parameters": {
+        "content": "Bruger JavaScript til at behandle og strukturere dataene.",
+        "height": 80,
+        "width": 224
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        320,
+        -160
+      ],
+      "typeVersion": 1,
+      "id": "7bcdc11f-6be9-40cd-a848-5ede641f711d",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "Henter information om FC Barcelona fra datakilden.",
+        "height": 80,
+        "width": 224
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        144,
+        64
+      ],
+      "typeVersion": 1,
+      "id": "4006cc56-8ec3-40af-b8e2-a8c071b57e4b",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "Opretter dokumenter med information om FC Barcelona, som kan bruges til søgning.",
+        "height": 80,
+        "width": 256
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        416,
+        48
+      ],
+      "typeVersion": 1,
+      "id": "9a485205-211f-4ce6-a34e-776a1e74aa87",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "Omdanner dokumenternes tekst til numeriske vektorer ved hjælp af en embedding-model.",
+        "height": 112
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        576,
+        -192
+      ],
+      "typeVersion": 1,
+      "id": "f69c484d-0a35-47e9-924f-3cdd2841b1c3",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "Opretter et vektorindeks i Neo4j, så systemet hurtigt kan finde relevante dokumenter ved hjælp af vektorsøgning.",
+        "height": 128,
+        "width": 224
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        880,
+        -208
+      ],
+      "typeVersion": 1,
+      "id": "07825614-f194-48af-aba4-600a4928e8fa",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "content": "Gemmer dokumenterne og deres embeddings i Neo4j-databasen.",
+        "height": 80,
+        "width": 224
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        720,
+        48
+      ],
+      "typeVersion": 1,
+      "id": "ce4d1923-9dbe-4db6-b121-6dae23e4c294",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "content": "Tilpasser og formaterer resultatet, så det præsenteres korrekt for brugeren.",
+        "height": 80,
+        "width": 304
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        944,
+        320
+      ],
+      "typeVersion": 1,
+      "id": "42cdbda9-d0cd-4a55-9ad5-060df4c6a1d2",
+      "name": "Sticky Note7"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a7e4eb75-89aa-4038-bd10-c052c4ab425a",
+              "name": "text",
+              "value": "={{ $('Generate Answer').first().json.message.content }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1008,
+        400
+      ],
+      "id": "ef07f111-c618-4eb9-99d8-d02b8edef721",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "content": "Bruger de fundne oplysninger til at generere et svar på brugerens spørgsmål.",
+        "height": 128,
+        "width": 224
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        752,
+        528
+      ],
+      "typeVersion": 1,
+      "id": "a3b098b0-62e4-48ec-86ab-3d194f0cd68c",
+      "name": "Sticky Note8"
+    },
+    {
+      "parameters": {
+        "content": "Kalder det separate Graph RAG-workflow for at hente relevante oplysninger fra grafdatabasen.",
+        "height": 80,
+        "width": 304
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        528,
+        288
+      ],
+      "typeVersion": 1,
+      "id": "2d84a53c-d6b9-41fd-a1c6-6385148d6f3a",
+      "name": "Sticky Note9"
+    },
+    {
+      "parameters": {
+        "content": "Søger i Neo4j's vektorindeks efter dokumenter, der har en betydning, som minder om brugerens spørgsmål.",
+        "height": 112,
+        "width": 304
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        400,
+        544
+      ],
+      "typeVersion": 1,
+      "id": "e893c040-7551-4781-bb2f-43b023ae2444",
+      "name": "Sticky Note10"
+    },
+    {
+      "parameters": {
+        "content": "Omdanner brugerens spørgsmål til en numerisk vektor ved hjælp af nomic-embed-text.",
+        "height": 80,
+        "width": 304
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        208,
+        304
+      ],
+      "typeVersion": 1,
+      "id": "8997a674-b7e4-4bf5-a7e6-b6c5b1b8efb6",
+      "name": "Sticky Note11"
+    },
+    {
+      "parameters": {
+        "content": "Kalder vektorværktøjet, som søger efter relevante dokumenter i Neo4j ved hjælp af embeddings.",
+        "height": 80,
+        "width": 304
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        496,
+        816
+      ],
+      "typeVersion": 1,
+      "id": "de89b3cc-6715-4931-b2d8-3d591f1eeb66",
+      "name": "Sticky Note12"
+    },
+    {
+      "parameters": {
+        "content": "Kalder grafværktøjet, som søger efter strukturerede oplysninger om spillere, klubber og relationer i Neo4j.",
+        "height": 112,
+        "width": 304
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        80,
+        736
+      ],
+      "typeVersion": 1,
+      "id": "91eb3167-2496-46ef-b99d-d44dc6cab2f4",
+      "name": "Sticky Note13"
+    },
+    {
+      "parameters": {
+        "content": "Leverer AI-sprogmodellen Llama 3.2, som bruges til at forstå spørgsmål og formulere svar.",
+        "height": 112,
+        "width": 272
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -208,
+        608
+      ],
+      "typeVersion": 1,
+      "id": "a6453de1-c8bf-43e6-bfbf-dd8ad4224c6b",
+      "name": "Sticky Note14"
+    },
+    {
+      "parameters": {
+        "content": "Analyserer brugerens spørgsmål og beslutter, hvilke værktøjer der skal bruges for at finde svaret.",
+        "height": 112,
+        "width": 272
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        48,
+        464
+      ],
+      "typeVersion": 1,
+      "id": "04a90def-bae3-4bca-82f3-3942d5b13830",
+      "name": "Sticky Note15"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Fetch Barcelona Info.",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Create Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Embeddings to Neo4j": {
+      "main": [
+        [
+          {
+            "node": "Create Vector Index",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Vector Index": {
+      "main": [
+        []
+      ]
+    },
+    "Create Document": {
+      "main": [
+        [
+          {
+            "node": "Generate Embeddings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Embeddings": {
+      "main": [
+        [
+          {
+            "node": "Save Embeddings to Neo4j",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Neo4j": {
+      "main": [
+        [
+          {
+            "node": "Call 'FC Barcelona – Graph RAG'",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Embeddings": {
+      "main": [
+        [
+          {
+            "node": "Search Neo4j",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Answer": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Barcelona Text": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call 'FC Barcelona – Graph RAG'": {
+      "main": [
+        [
+          {
+            "node": "Generate Answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Query Embeddings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call 'FC Barcelona – Graph Tool'": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call 'FC Barcelona – Vector Tool'": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Barcelona Info.": {
+      "main": [
+        [
+          {
+            "node": "Prepare Barcelona Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "08a558bb-158b-49b6-849b-bc1fce3ec9b6",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6262109213ecacf6e9e7e78260515abac2ba45e4ec54bf5267b3b5341b9f8d55"
+  },
+  "nodeGroups": [],
+  "id": "C9hnqAHw10sr410j",
+  "tags": []
+}

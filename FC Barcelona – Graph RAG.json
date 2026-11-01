@@ -1,0 +1,105 @@
+{
+  "name": "FC Barcelona – Graph RAG",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:7474/db/fc-barcelona-rag/query/v2",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"statement\": \"MATCH (coach:Coach)-[:COACHES]->(c:Club {name: 'FC Barcelona'}) RETURN coach.name AS navn, coach.role AS rolle, coach.nationality AS nationalitet, coach.profile AS profil, c.name AS klub\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        464,
+        -32
+      ],
+      "id": "82beb654-4d4f-4a52-bf6b-1eecfa0c3fae",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "rgS5U5UOUSzy0ifk",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "Modtager et spørgsmål fra AI Agenten og starter grafbaseret søgning.",
+        "height": 96
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -16,
+        -96
+      ],
+      "typeVersion": 1,
+      "id": "f6383b3a-fdb0-4786-9ae6-a5988f3b63ef",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "Modtager input fra hovedworkflowet og starter Graph RAG-søgningen.\n\nSender en Cypher-forespørgsel til Neo4j, som finder den træner, der er forbundet med FC Barcelona gennem relationen COACHES.\n\nDen returnerer:\n- Trænerens navn.\n- Trænerens rolle.\n- Trænerens nationalitet.\n- Trænerens profil.\n- Klubbens navn.",
+        "height": 368,
+        "width": 352
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        240,
+        -208
+      ],
+      "typeVersion": 1,
+      "id": "fafd107a-5eb6-40d3-b211-86f65fa5eaa1",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "question"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        48,
+        -16
+      ],
+      "id": "db0121cc-909f-4b7d-a0f6-424f695d9535",
+      "name": "When Executed by Another Workflow"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "b5612682-5499-4612-9b0a-4d621ce8bacc",
+  "meta": {
+    "instanceId": "6262109213ecacf6e9e7e78260515abac2ba45e4ec54bf5267b3b5341b9f8d55"
+  },
+  "nodeGroups": [],
+  "id": "0VrmGzsDrWIROdI9",
+  "tags": []
+}

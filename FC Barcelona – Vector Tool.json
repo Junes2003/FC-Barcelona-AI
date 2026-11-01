@@ -1,0 +1,165 @@
+{
+  "name": "FC Barcelona – Vector Tool",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "question"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -80,
+        0
+      ],
+      "id": "38a2d564-90bf-4f18-a3c5-e625b7cfb607",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:7474/db/fc-barcelona-rag/query/v2",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "statement",
+              "value": "CALL db.index.vector.queryNodes('document_embedding', 20, $embedding) YIELD node, score WITH node, score WHERE node.title IN ['History of FC Barcelona', 'FC Barcelona'] RETURN node.title AS title, node.content AS content, score ORDER BY score DESC LIMIT 5"
+            },
+            {
+              "name": "parameters",
+              "value": "={{ { embedding: $('Ollama Embeddings').first().json.embedding } }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        544,
+        0
+      ],
+      "id": "ee64bc75-ccf5-4c7a-af0e-386105ee1417",
+      "name": "Search Neo4j",
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "rgS5U5UOUSzy0ifk",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/embeddings",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"nomic-embed-text:latest\",\n  \"prompt\": \"{{ $json.question }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        256,
+        0
+      ],
+      "id": "dca547ab-e0fe-4ca1-bea2-274882aec190",
+      "name": "Ollama Embeddings",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "rgS5U5UOUSzy0ifk",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "Modtager brugerens spørgsmål fra AI Agenten og starter vektorsøgningen. Spørgsmålet sendes videre til Ollama Embeddings."
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -80,
+        -144
+      ],
+      "typeVersion": 1,
+      "id": "2c7a0e01-029a-479e-a7bb-09420f060caf",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "Sender brugerens spørgsmål til Ollama med modellen nomic-embed-text. Modellen omdanner spørgsmålet til en numerisk embedding-vektor med 768 dimensioner.",
+        "height": 176
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        192,
+        -176
+      ],
+      "typeVersion": 1,
+      "id": "96767c1b-aa65-4781-bd2b-c50aa86ddc24",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "Sender embedding-vektoren til Neo4j og søger i vektorindekset document_embedding. Den finder de dokumenter, der semantisk matcher spørgsmålet, og returnerer titel, indhold og relevansscore.",
+        "height": 208
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        464,
+        -208
+      ],
+      "typeVersion": 1,
+      "id": "1fe86e58-33c7-425d-8943-110b08057ddf",
+      "name": "Sticky Note2"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Ollama Embeddings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Embeddings": {
+      "main": [
+        [
+          {
+            "node": "Search Neo4j",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "993c5cfb-b5b0-4c07-a7e1-fab92bccf89a",
+  "meta": {
+    "instanceId": "6262109213ecacf6e9e7e78260515abac2ba45e4ec54bf5267b3b5341b9f8d55"
+  },
+  "nodeGroups": [],
+  "id": "JxdStW8Xy5yF02xP",
+  "tags": []
+}
