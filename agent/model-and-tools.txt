@@ -1,0 +1,20 @@
+Chatmodel:
+llama3.2:latest
+
+Embedding-model:
+nomic-embed-text:latest
+
+Database:
+Neo4j
+
+Vector Tool:
+Finder relevant tekst og information i dokumenterne i Neo4j ved hjælp af embeddings og vector search.
+
+Graph Tool:
+Henter strukturerede oplysninger om FC Barcelonas spillere, herunder navn, position og trøjenummer.
+
+Graph RAG:
+Henter oplysninger om FC Barcelonas trænere, herunder navn, rolle, nationalitet og profil.
+
+Hovedworkflow:
+Modtager brugerens spørgsmål og bruger AI-agenten til at vælge det relevante værktøj.
